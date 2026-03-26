@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="43rd Annual Fayette County Farm Bureau Farm Equipment Consignment Auction — Saturday, March 14, 2026 at Kentucky Horse Park, Lexington KY.">
 <title>Fayette Co. Farm Bureau — Farm Equipment Consignment Auction 2026</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
@@ -261,6 +262,23 @@ footer strong{color:rgba(255,255,255,.75)}
 .anim-2{animation-delay:.1s}
 .anim-3{animation-delay:.15s}
 .anim-4{animation-delay:.2s}
+
+/* ─── Tab content — ensure only one shows ─────────────── */
+.tab-content { display: none; }
+
+
+/* ─── Contact grid — 2-col desktop, stacked mobile ───── */
+.contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 18px; }
+.contact-row-border { border-left: 1px solid rgba(255,255,255,.15); padding-left: 20px !important; margin-left: -1px; }
+@media(max-width: 640px) {
+  .contact-grid { grid-template-columns: 1fr; }
+  .contact-row-border { border-left: none; border-top: 1px solid rgba(255,255,255,.15); padding-left: 0 !important; padding-top: 14px; margin-top: 14px; margin-left: 0; }
+  .contact-num { font-size: 18px !important; }
+  .header-badge { display: none; }
+  .header-wrap { padding: 12px 14px 0; }
+  .tab-nav { padding: 0 14px; }
+  .tab-btn { padding: 10px 14px; font-size: 13px; }
+}
 </style>
 </head>
 <body>
@@ -397,7 +415,7 @@ footer strong{color:rgba(255,255,255,.75)}
     <!-- Contact -->
     <p class="section-lbl">Questions? Contact Us</p>
     <div class="navy-card anim anim-4">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:18px">
+      <div class="contact-grid">
         <div class="contact-row" style="margin-bottom:0;padding-bottom:0">
           <div>
             <div class="contact-lbl">Our Office</div>
@@ -405,7 +423,7 @@ footer strong{color:rgba(255,255,255,.75)}
           </div>
           <a href="tel:8598802766" class="phone-btn">📞 Call</a>
         </div>
-        <div class="contact-row" style="margin-bottom:0;padding-bottom:0">
+        <div class="contact-row contact-row-border" style="margin-bottom:0;padding-bottom:0">
           <div>
             <div class="contact-lbl">Todd Clark</div>
             <div class="contact-num">(859) 621-6471</div>
@@ -467,10 +485,15 @@ footer strong{color:rgba(255,255,255,.75)}
         </div>
         <p class="qr-hint">Scan with your phone camera<br>to open in Expo Go</p>
       </div>
+      <div style="padding:0 20px 10px">
+        <div style="background:rgba(255,255,255,.08);border-radius:8px;padding:10px 12px;border:1px solid rgba(255,255,255,.15)">
+          <p style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.5">💡 The link below opens a web preview in your browser. To run natively, scan the QR code above in Expo Go.</p>
+        </div>
+      </div>
       <div class="app-links">
         <a href="https://fayette-auction-app--ojrv15wmln.expo.app" target="_blank" id="expo-link" class="app-link-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-          Open in Expo Go
+          Open Web Preview
         </a>
         <a href="https://github.com/fleecehop2/fleecehop2.github.io" target="_blank" class="app-link-btn" id="github-link">
           <svg viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.09.68-.22.68-.49v-1.71c-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.38 9.38 0 0112 7.4c.85 0 1.71.12 2.51.34 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9v2.82c0 .27.18.59.69.49A10.27 10.27 0 0022 12.26C22 6.58 17.52 2 12 2z"/></svg>
@@ -753,9 +776,9 @@ footer strong{color:rgba(255,255,255,.75)}
 <script>
 /* ── Tab switching ─────────────────────────────────────── */
 function showTab(id, btn) {
-  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.tab-content').forEach(t => { t.style.display = 'none'; });
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + id).style.display = '';
+  document.getElementById('tab-' + id).style.display = 'block';
   btn.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
