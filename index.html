@@ -268,8 +268,9 @@ footer strong{color:rgba(255,255,255,.75)}
 
 
 /* ─── Contact grid — 2-col desktop, stacked mobile ───── */
-.contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 18px; }
-.contact-row-border { border-left: 1px solid rgba(255,255,255,.15); padding-left: 20px !important; margin-left: -1px; }
+.contact-grid { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; margin-bottom: 18px; align-items: center; }
+.contact-divider { background: rgba(255,255,255,.15); align-self: stretch; width: 1px; }
+.contact-row-border { padding-left: 24px; }
 /* Map tab: sidebar goes below map on mobile */
 @media(max-width: 960px) {
   .map-page-wrap { grid-template-columns: 1fr !important; }
@@ -278,7 +279,8 @@ footer strong{color:rgba(255,255,255,.75)}
 
 @media(max-width: 640px) {
   .contact-grid { grid-template-columns: 1fr; }
-  .contact-row-border { border-left: none; border-top: 1px solid rgba(255,255,255,.15); padding-left: 0 !important; padding-top: 14px; margin-top: 14px; margin-left: 0; }
+  .contact-divider { display: none; }
+  .contact-row-border { padding-left: 0; padding-top: 14px; margin-top: 14px; border-top: 1px solid rgba(255,255,255,.15); }
   .contact-num { font-size: 18px !important; }
   .header-badge { display: none; }
   .header-wrap { padding: 12px 14px 0; }
@@ -385,7 +387,7 @@ footer strong{color:rgba(255,255,255,.75)}
             </div>
           </div>
           <div class="divider"></div>
-          <div class="btn-row">
+          <div class="btn-row" style="padding-top:14px">
             <a href="https://maps.apple.com/?address=4089+Ironworks+Pike,Lexington,KY+40511" target="_blank" class="btn-fill">Apple Maps</a>
             <a href="https://maps.google.com/?q=4089+Ironworks+Pike,+Lexington,+KY+40511" target="_blank" class="btn-out">Google Maps</a>
           </div>
@@ -430,6 +432,7 @@ footer strong{color:rgba(255,255,255,.75)}
           </div>
           <a href="tel:8598802766" class="phone-btn">📞 Call</a>
         </div>
+        <div class="contact-divider"></div>
         <div class="contact-row contact-row-border" style="margin-bottom:0;padding-bottom:0">
           <div>
             <div class="contact-lbl">Todd Clark</div>
