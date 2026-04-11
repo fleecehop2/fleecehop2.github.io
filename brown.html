@@ -155,8 +155,8 @@
     <div class="vol-stack">
       <div class="vol-row">
         <span class="vol-label">Volume</span>
-        <input type="range" id="vol" min="0" max="100" value="37" step="1">
-        <span class="vol-val" id="volVal">37%</span>
+        <input type="range" id="vol" min="0" max="100" value="100" step="1">
+        <span class="vol-val" id="volVal">100%</span>
       </div>
     </div>
   </div>
@@ -270,18 +270,18 @@ const modeEngineConfig = [
 
 // Default parameter snapshots per mode — sourced from user presets
 const modePresets = [
-  { name:'Pure brown',      params:{ vol:37, lowCut:111, highCut:6700,  warmth:0,   velvetMix:4,  driftSpeed:5,  driftDepth:40, intRate:7, intIntensity:20, intChar:'dip',     convMix:40, convPreDelay:0, convLength:100, currentIR:'smallroom', convWidth:166, convSeparation:58 } },
-  { name:'Short flight',    params:{ vol:37, lowCut:103, highCut:15700, warmth:-1.5,velvetMix:0,  driftSpeed:3,  driftDepth:36, intRate:2, intIntensity:8,  intChar:'crackle', convMix:50, convPreDelay:0, convLength:62,  currentIR:'hall',      convWidth:166, convSeparation:58 } },
-  { name:'Unstable plane',  params:{ vol:37, lowCut:216, highCut:7200,  warmth:-8.5,velvetMix:1,  driftSpeed:14, driftDepth:14, intRate:3, intIntensity:64, intChar:'swell',   convMix:36, convPreDelay:2, convLength:100, currentIR:'smallroom', convWidth:170, convSeparation:58 } },
-  { name:'Oxide',           params:{ vol:37, lowCut:145, highCut:3800,  warmth:-8.5,velvetMix:3,  driftSpeed:12, driftDepth:21, intRate:3, intIntensity:79, intChar:'rumble',  convMix:81, convPreDelay:0, convLength:100, currentIR:'smallroom', convWidth:124, convSeparation:66 } },
-  { name:'Ventilation shaft',params:{ vol:37, lowCut:100, highCut:6200,  warmth:4,  velvetMix:3,  driftSpeed:3,  driftDepth:69, intRate:3, intIntensity:43, intChar:'dip',     convMix:62, convPreDelay:0, convLength:100, currentIR:'tunnel',    convWidth:124, convSeparation:66 } },
-  { name:'Summer rain',     params:{ vol:37, lowCut:227, highCut:6800,  warmth:-8,  velvetMix:2,  driftSpeed:1,  driftDepth:61, intRate:1, intIntensity:16, intChar:'dip',     convMix:55, convPreDelay:0, convLength:100, currentIR:'cave',      convWidth:50,  convSeparation:61 } },
+  { name:'Pure brown',      params:{ vol:100, lowCut:111, highCut:6700,  warmth:0,   velvetMix:4,  driftSpeed:5,  driftDepth:40, intRate:7, intIntensity:20, intChar:'dip',     convMix:40, convPreDelay:0, convLength:100, currentIR:'smallroom', convWidth:166, convSeparation:58 } },
+  { name:'Short flight',    params:{ vol:100, lowCut:103, highCut:15700, warmth:-1.5,velvetMix:0,  driftSpeed:3,  driftDepth:36, intRate:2, intIntensity:8,  intChar:'crackle', convMix:50, convPreDelay:0, convLength:62,  currentIR:'hall',      convWidth:166, convSeparation:58 } },
+  { name:'Unstable plane',  params:{ vol:100, lowCut:216, highCut:7200,  warmth:-8.5,velvetMix:1,  driftSpeed:14, driftDepth:14, intRate:3, intIntensity:64, intChar:'swell',   convMix:36, convPreDelay:2, convLength:100, currentIR:'smallroom', convWidth:170, convSeparation:58 } },
+  { name:'Oxide',           params:{ vol:100, lowCut:145, highCut:3800,  warmth:-8.5,velvetMix:3,  driftSpeed:12, driftDepth:21, intRate:3, intIntensity:79, intChar:'rumble',  convMix:81, convPreDelay:0, convLength:100, currentIR:'smallroom', convWidth:124, convSeparation:66 } },
+  { name:'Ventilation shaft',params:{ vol:100, lowCut:100, highCut:6200, warmth:4,   velvetMix:3,  driftSpeed:3,  driftDepth:69, intRate:3, intIntensity:43, intChar:'dip',     convMix:62, convPreDelay:0, convLength:100, currentIR:'tunnel',    convWidth:124, convSeparation:66 } },
+  { name:'Summer rain',     params:{ vol:100, lowCut:227, highCut:6800,  warmth:-8,  velvetMix:2,  driftSpeed:1,  driftDepth:61, intRate:1, intIntensity:16, intChar:'dip',     convMix:55, convPreDelay:0, convLength:100, currentIR:'cave',      convWidth:50,  convSeparation:61 } },
 ];
 let currentMode = 0;
 
 // ---- Global param state (initialised from mode 0 defaults) ----
 const p = {
-  vol:37, lowCut:111, highCut:6700, warmth:0, velvetMix:4,
+  vol:100, lowCut:111, highCut:6700, warmth:0, velvetMix:4,
   driftSpeed:5, driftDepth:40, intRate:7, intIntensity:20, intChar:'dip',
   convMix:40, convPreDelay:0, convLength:100, currentIR:'smallroom',
   convWidth:166, convSeparation:58
