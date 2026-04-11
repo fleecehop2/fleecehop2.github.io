@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brown Noise Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0f0c09; --surface:#1a1410; --panel:#201912; --border:#3a2e22;
+    --copper:#c4813a; --copper-dim:#7a4e20; --copper-lo:#3d2610;
+    --cream:#e8d5a8; --cream-dim:#9a8060; --cream-lo:#4a3a28; --warm-red:#c04020;
+  }
+  html,body { width:100%; min-height:100vh; background:var(--bg); color:var(--cream); font-family:'DM Mono',monospace; font-weight:300; overflow-x:hidden; }
+  body::before { content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size:180px 180px; opacity:0.6; }
+  .app { position:relative; z-index:1; max-width:700px; margin:0 auto; padding:2.5rem 1.5rem 4rem; }
+
+  /* Header */
+  .header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:2.5rem; border-bottom:1px solid var(--border); padding-bottom:1.25rem; }
+  .title { font-family:'Instrument Serif',serif; font-style:italic; font-size:2.6rem; line-height:1; color:var(--copper); letter-spacing:-0.02em; }
+  .title span { color:var(--cream); font-style:normal; }
+  .subtitle { font-size:0.65rem; letter-spacing:0.12em; color:var(--cream-dim); text-transform:uppercase; margin-top:6px; }
+  .engine-tag { font-size:0.6rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--copper-dim); border:1px solid var(--copper-lo); padding:4px 8px; border-radius:2px; align-self:flex-start; }
+
+  /* Transport */
+  .transport { display:flex; align-items:center; gap:1.25rem; margin-bottom:2rem; }
+  .play-btn { width:56px; height:56px; border-radius:50%; background:var(--copper-lo); border:1.5px solid var(--copper-dim); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s,border-color .15s,transform .1s; flex-shrink:0; }
+  .play-btn:hover { background:var(--copper-dim); border-color:var(--copper); }
+  .play-btn:active { transform:scale(.93); }
+  .play-btn.playing { background:var(--copper); border-color:var(--copper); }
+  .play-btn svg { width:22px; height:22px; fill:var(--cream); }
+  .vol-stack { flex:1; display:flex; flex-direction:column; gap:6px; }
+  .vol-row { display:flex; align-items:center; gap:10px; }
+  .vol-label { font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--cream-dim); min-width:42px; }
+  .vol-val { font-size:0.7rem; color:var(--copper); min-width:36px; text-align:right; font-variant-numeric:tabular-nums; }
+
+  /* Meter */
+  .meter-wrap { display:flex; flex-direction:column; gap:3px; }
+  .meter-bar { height:5px; width:120px; background:var(--surface); border-radius:2px; overflow:hidden; border:1px solid var(--border); }
+  .meter-fill { height:100%; width:0%; border-radius:2px; background:linear-gradient(90deg,var(--copper-dim) 0%,var(--copper) 70%,var(--warm-red) 100%); transition:width .05s; }
+  .meter-label { font-size:0.55rem; letter-spacing:0.08em; color:var(--cream-lo); text-transform:uppercase; }
+
+  /* Modes */
+  .modes { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:1.75rem; }
+  .mode-btn { border:1px solid var(--border); background:var(--surface); border-radius:4px; padding:10px 4px 8px; cursor:pointer; text-align:center; transition:background .15s,border-color .15s; font-family:'DM Mono',monospace; }
+  .mode-btn:hover { background:var(--panel); border-color:var(--copper-dim); }
+  .mode-btn.active { background:var(--copper-lo); border-color:var(--copper); }
+  .mode-icon { font-size:18px; display:block; margin-bottom:5px; line-height:1; }
+  .mode-name { font-size:0.6rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--cream-dim); }
+  .mode-btn.active .mode-name { color:var(--copper); }
+
+  /* Sections */
+  .sections { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .section-full { margin-bottom:10px; }
+  .section { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:1rem 1rem .875rem; }
+  .section-title { font-size:0.58rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--copper-dim); margin-bottom:.875rem; display:flex; align-items:center; gap:6px; }
+  .section-title::after { content:''; flex:1; height:1px; background:var(--copper-lo); }
+
+  /* Controls */
+  .ctrl-row { display:flex; align-items:center; gap:10px; margin-bottom:.6rem; }
+  .ctrl-row:last-child { margin-bottom:0; }
+  .ctrl-label { font-size:0.65rem; color:var(--cream-dim); min-width:88px; letter-spacing:.04em; }
+  .ctrl-val { font-size:0.65rem; color:var(--copper); min-width:44px; text-align:right; font-variant-numeric:tabular-nums; }
+  input[type=range] { flex:1; -webkit-appearance:none; appearance:none; height:3px; border-radius:2px; outline:none; cursor:pointer;
+    background:linear-gradient(to right, var(--copper) 0%, var(--copper) var(--pct,0%), var(--cream-lo) var(--pct,0%), var(--cream-lo) 100%); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--copper); border:2px solid var(--bg); box-shadow:0 0 0 1px var(--copper-dim); transition:transform .1s; }
+  input[type=range]:hover::-webkit-slider-thumb { transform:scale(1.2); background:#d8983f; }
+  input[type=range]::-moz-range-thumb { width:14px; height:14px; border-radius:50%; background:var(--copper); border:2px solid var(--bg); }
+  .ctrl-select { flex:1; background:var(--panel); border:1px solid var(--border); color:var(--cream); font-family:'DM Mono',monospace; font-size:0.65rem; padding:5px 8px; border-radius:4px; outline:none; cursor:pointer; -webkit-appearance:none; appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23c4813a'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 8px center; padding-right:24px; }
+
+  /* IR buttons */
+  .ir-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:.75rem; }
+  .ir-btn { border:1px solid var(--border); background:var(--surface); border-radius:4px; padding:8px 4px 7px; cursor:pointer; text-align:center; transition:background .15s,border-color .15s; font-family:'DM Mono',monospace; }
+  .ir-btn:hover { background:var(--panel); border-color:var(--copper-dim); }
+  .ir-btn.active { background:var(--copper-lo); border-color:var(--copper); }
+  .ir-btn.active .ir-name { color:var(--copper); }
+  .ir-icon { font-size:15px; display:block; margin-bottom:3px; line-height:1; }
+  .ir-name { font-size:0.57rem; letter-spacing:.05em; text-transform:uppercase; color:var(--cream-dim); }
+  .ir-upload-label { display:flex; align-items:center; justify-content:center; gap:5px; border:1px dashed var(--border); background:transparent; border-radius:4px; padding:8px 4px 7px; cursor:pointer; font-family:'DM Mono',monospace; font-size:0.57rem; letter-spacing:.05em; text-transform:uppercase; color:var(--cream-dim); transition:border-color .15s,color .15s; }
+  .ir-upload-label:hover { border-color:var(--copper-dim); color:var(--copper); }
+  .ir-upload-label.active { border-style:solid; border-color:var(--copper); color:var(--copper); background:var(--copper-lo); }
+  .ir-status { font-size:0.6rem; color:var(--copper-dim); letter-spacing:.06em; text-transform:uppercase; height:14px; margin-bottom:.5rem; }
+
+  /* Play button pulse ring when playing */
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0px rgba(196,129,58,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(196,129,58,0); }
+    100% { box-shadow: 0 0 0 0px rgba(196,129,58,0); }
+  }
+  .play-btn.playing { animation: pulse-ring 2s ease-out infinite; }
+  #spectrum { width:100%; height:72px; display:block; border-radius:4px; background:var(--panel); border:1px solid var(--border); }
+
+  /* Presets */
+  .preset-bar { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .preset-name-input { flex:1; min-width:120px; background:var(--panel); border:1px solid var(--border); color:var(--cream); font-family:'DM Mono',monospace; font-size:0.65rem; padding:6px 10px; border-radius:4px; outline:none; }
+  .preset-name-input:focus { border-color:var(--copper-dim); }
+  .preset-name-input::placeholder { color:var(--cream-lo); }
+  .pill-btn { background:var(--panel); border:1px solid var(--border); color:var(--cream-dim); font-family:'DM Mono',monospace; font-size:0.6rem; letter-spacing:.06em; text-transform:uppercase; padding:6px 12px; border-radius:4px; cursor:pointer; white-space:nowrap; transition:background .15s,border-color .15s,color .15s; }
+  .pill-btn:hover { background:var(--copper-lo); border-color:var(--copper-dim); color:var(--copper); }
+  .preset-list { display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto; }
+  .preset-list::-webkit-scrollbar { width:4px; }
+  .preset-list::-webkit-scrollbar-track { background:var(--surface); }
+  .preset-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  .preset-row { display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:7px 10px; cursor:pointer; transition:border-color .15s; }
+  .preset-row:hover { border-color:var(--copper-dim); }
+  .preset-row.loaded { border-color:var(--copper); background:var(--copper-lo); }
+  .preset-row-name { flex:1; font-size:0.65rem; color:var(--cream); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .preset-row-meta { font-size:0.55rem; color:var(--cream-lo); white-space:nowrap; }
+  .preset-row-del { background:none; border:none; color:var(--cream-lo); cursor:pointer; font-size:15px; line-height:1; padding:0 2px; transition:color .1s; }
+  .preset-row-del:hover { color:var(--warm-red); }
+  .preset-empty { font-size:0.62rem; color:var(--cream-lo); padding:12px 0; text-align:center; letter-spacing:.06em; }
+
+  /* Status */
+  .status-bar { display:flex; justify-content:space-between; align-items:center; margin-top:1.25rem; font-size:0.6rem; letter-spacing:.08em; text-transform:uppercase; color:var(--cream-lo); }
+  .status-dot { width:6px; height:6px; border-radius:50%; background:var(--cream-lo); display:inline-block; margin-right:6px; transition:background .3s; }
+  .status-dot.active { background:var(--copper); box-shadow:0 0 6px var(--copper); }
+
+  @media(max-width:520px) {
+    .modes { grid-template-columns:repeat(3,1fr); }
+    .sections { grid-template-columns:1fr; }
+    .ir-grid { grid-template-columns:repeat(3,1fr); }
+    .title { font-size:2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="header">
+    <div>
+      <div class="title">Brown <span>Noise</span></div>
+      <div class="subtitle">Studio</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div class="engine-tag">Voss–McCartney + Velvet Engine</div>
+      <div class="meter-wrap">
+        <div class="meter-bar"><div class="meter-fill" id="meterFill"></div></div>
+        <div class="meter-bar"><div class="meter-fill" id="meterFillR"></div></div>
+        <div class="meter-label">L &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; R</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="transport">
+    <button class="play-btn" id="playBtn" aria-label="Play/Stop">
+      <svg viewBox="0 0 24 24" id="playIcon" width="22" height="22" fill="var(--cream)">
+        <path id="iconPlay"  d="M8 5v14l11-7z"/>
+        <path id="iconPause" d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" style="display:none"/>
+      </svg>
+    </button>
+    <div class="vol-stack">
+      <div class="vol-row">
+        <span class="vol-label">Volume</span>
+        <input type="range" id="vol" min="0" max="100" value="37" step="1">
+        <span class="vol-val" id="volVal">37%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modes">
+    <button class="mode-btn active" data-mode="0"><span class="mode-icon">〰</span><span class="mode-name">Pure</span></button>
+    <button class="mode-btn" data-mode="1"><span class="mode-icon">✈</span><span class="mode-name">Plane</span></button>
+    <button class="mode-btn" data-mode="2"><span class="mode-icon">◎</span><span class="mode-name">Groove</span></button>
+    <button class="mode-btn" data-mode="3"><span class="mode-icon">▭</span><span class="mode-name">Tape</span></button>
+    <button class="mode-btn" data-mode="4"><span class="mode-icon">⊕</span><span class="mode-name">Fan</span></button>
+    <button class="mode-btn" data-mode="5"><span class="mode-icon">∿</span><span class="mode-name">Rain</span></button>
+  </div>
+
+  <div class="section-full">
+    <div class="section">
+      <div class="section-title">Tone shaping</div>
+      <div class="ctrl-row"><span class="ctrl-label">Low cut</span><input type="range" id="lowCut" min="20" max="500" value="111" step="1"><span class="ctrl-val" id="lowCutVal">111 Hz</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">High cut</span><input type="range" id="highCut" min="1000" max="18000" value="6700" step="100"><span class="ctrl-val" id="highCutVal">6.7k Hz</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Warmth</span><input type="range" id="warmth" min="-12" max="12" value="0" step="0.5"><span class="ctrl-val" id="warmthVal">0 dB</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Velvet mix</span><input type="range" id="velvetMix" min="0" max="100" value="4" step="1"><span class="ctrl-val" id="velvetMixVal">4%</span></div>
+    </div>
+  </div>
+
+  <div class="sections">
+    <div class="section">
+      <div class="section-title">Organic drift</div>
+      <div class="ctrl-row"><span class="ctrl-label">Speed</span><input type="range" id="driftSpeed" min="0" max="100" value="5" step="1"><span class="ctrl-val" id="driftSpeedVal">5%</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Depth</span><input type="range" id="driftDepth" min="0" max="100" value="40" step="1"><span class="ctrl-val" id="driftDepthVal">40%</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Interruptions</div>
+      <div class="ctrl-row"><span class="ctrl-label">Rate</span><input type="range" id="intRate" min="0" max="100" value="7" step="1"><span class="ctrl-val" id="intRateVal">7%</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Intensity</span><input type="range" id="intIntensity" min="0" max="100" value="20" step="1"><span class="ctrl-val" id="intIntensityVal">20%</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Character</span>
+        <select class="ctrl-select" id="intChar">
+          <option value="dip">Volume dip</option>
+          <option value="rumble">Low rumble</option>
+          <option value="crackle">Crackle</option>
+          <option value="swell">Swell</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONVOLUTION -->
+  <div class="section-full">
+    <div class="section">
+      <div class="section-title">Convolution reverb</div>
+      <div class="ir-grid">
+        <button class="ir-btn" data-ir="none"><span class="ir-icon">∅</span><span class="ir-name">Dry</span></button>
+        <button class="ir-btn active" data-ir="smallroom"><span class="ir-icon">▪</span><span class="ir-name">Small room</span></button>
+        <button class="ir-btn" data-ir="hall"><span class="ir-icon">▬</span><span class="ir-name">Hall</span></button>
+        <button class="ir-btn" data-ir="cave"><span class="ir-icon">◉</span><span class="ir-name">Cave</span></button>
+        <button class="ir-btn" data-ir="plate"><span class="ir-icon">▰</span><span class="ir-name">Plate</span></button>
+        <button class="ir-btn" data-ir="spring"><span class="ir-icon">〜</span><span class="ir-name">Spring</span></button>
+        <button class="ir-btn" data-ir="tunnel"><span class="ir-icon">◌</span><span class="ir-name">Tunnel</span></button>
+        <label class="ir-upload-label" id="irUploadLabel">
+          <span style="font-size:13px">↑</span>
+          <span id="irUploadName">Load IR</span>
+          <input type="file" id="irFileInput" accept="audio/*" style="display:none">
+        </label>
+      </div>
+      <div class="ir-status" id="irStatus"></div>
+      <div class="ctrl-row"><span class="ctrl-label">Wet mix</span><input type="range" id="convMix" min="0" max="100" value="40" step="1"><span class="ctrl-val" id="convMixVal">40%</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Pre-delay</span><input type="range" id="convPreDelay" min="0" max="100" value="0" step="1"><span class="ctrl-val" id="convPreDelayVal">0 ms</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">IR length</span><input type="range" id="convLength" min="5" max="100" value="100" step="1"><span class="ctrl-val" id="convLengthVal">100%</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Width</span><input type="range" id="convWidth" min="0" max="200" value="166" step="1"><span class="ctrl-val" id="convWidthVal">166%</span></div>
+      <div class="ctrl-row"><span class="ctrl-label">Separation</span><input type="range" id="convSeparation" min="-100" max="100" value="58" step="1"><span class="ctrl-val" id="convSeparationVal">+58</span></div>
+    </div>
+  </div>
+
+  <!-- PRESETS -->
+  <div class="section-full">
+    <div class="section">
+      <div class="section-title">Presets</div>
+      <div class="preset-bar">
+        <input type="text" class="preset-name-input" id="presetNameInput" placeholder="Preset name…" maxlength="40">
+        <button class="pill-btn" id="savePresetBtn">Save</button>
+        <button class="pill-btn" id="exportBtn">Export JSON</button>
+        <button class="pill-btn" id="importBtn">Import JSON</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none">
+      </div>
+      <div class="preset-list" id="presetList"></div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-bottom:0">
+    <div class="section-title">Spectrum</div>
+    <canvas id="spectrum"></canvas>
+  </div>
+
+  <div class="status-bar">
+    <div><span class="status-dot" id="statusDot"></span><span id="statusText">stopped</span></div>
+    <div id="modeLabel">Pure brown — Voss-McCartney</div>
+  </div>
+
+</div>
+
+<script>
+// ---- Mode presets ----
+// DSP engine config (warmCut/velvetD drive the worklet's internal LP and velvet density)
+// These stay separate from the user-facing param snapshot below
+const modeEngineConfig = [
+  { warmCut:600,  velvetD:0    },
+  { warmCut:380,  velvetD:800  },
+  { warmCut:700,  velvetD:1200 },
+  { warmCut:900,  velvetD:3000 },
+  { warmCut:350,  velvetD:500  },
+  { warmCut:1200, velvetD:4000 },
+];
+
+// Default parameter snapshots per mode — sourced from user presets
+const modePresets = [
+  { name:'Pure brown',      params:{ vol:37, lowCut:111, highCut:6700,  warmth:0,   velvetMix:4,  driftSpeed:5,  driftDepth:40, intRate:7, intIntensity:20, intChar:'dip',     convMix:40, convPreDelay:0, convLength:100, currentIR:'smallroom', convWidth:166, convSeparation:58 } },
+  { name:'Short flight',    params:{ vol:37, lowCut:103, highCut:15700, warmth:-1.5,velvetMix:0,  driftSpeed:3,  driftDepth:36, intRate:2, intIntensity:8,  intChar:'crackle', convMix:50, convPreDelay:0, convLength:62,  currentIR:'hall',      convWidth:166, convSeparation:58 } },
+  { name:'Unstable plane',  params:{ vol:37, lowCut:216, highCut:7200,  warmth:-8.5,velvetMix:1,  driftSpeed:14, driftDepth:14, intRate:3, intIntensity:64, intChar:'swell',   convMix:36, convPreDelay:2, convLength:100, currentIR:'smallroom', convWidth:170, convSeparation:58 } },
+  { name:'Oxide',           params:{ vol:37, lowCut:145, highCut:3800,  warmth:-8.5,velvetMix:3,  driftSpeed:12, driftDepth:21, intRate:3, intIntensity:79, intChar:'rumble',  convMix:81, convPreDelay:0, convLength:100, currentIR:'smallroom', convWidth:124, convSeparation:66 } },
+  { name:'Ventilation shaft',params:{ vol:37, lowCut:100, highCut:6200,  warmth:4,  velvetMix:3,  driftSpeed:3,  driftDepth:69, intRate:3, intIntensity:43, intChar:'dip',     convMix:62, convPreDelay:0, convLength:100, currentIR:'tunnel',    convWidth:124, convSeparation:66 } },
+  { name:'Summer rain',     params:{ vol:37, lowCut:227, highCut:6800,  warmth:-8,  velvetMix:2,  driftSpeed:1,  driftDepth:61, intRate:1, intIntensity:16, intChar:'dip',     convMix:55, convPreDelay:0, convLength:100, currentIR:'cave',      convWidth:50,  convSeparation:61 } },
+];
+let currentMode = 0;
+
+// ---- Global param state (initialised from mode 0 defaults) ----
+const p = {
+  vol:37, lowCut:111, highCut:6700, warmth:0, velvetMix:4,
+  driftSpeed:5, driftDepth:40, intRate:7, intIntensity:20, intChar:'dip',
+  convMix:40, convPreDelay:0, convLength:100, currentIR:'smallroom',
+  convWidth:166, convSeparation:58
+};
+
+// ---- Audio nodes ----
+let actx=null, playing=false, animId=null;
+let workletNode=null, hpfL=null, hpfR=null, lpfL=null, lpfR=null;
+let shelfL=null, shelfR=null, splitter=null, merger=null;
+let masterGain=null, analyserL=null, analyserR=null;
+let convolver=null, convDryGain=null, convWetGain=null, convPreDelayNode=null;
+let currentIRBuffer=null;
+// Mid/Side matrix nodes for wet reverb width/separation
+let msEncL=null, msEncR=null;   // encode: mid = L+R, side = L-R
+let msMidGain=null, msSideGain=null;  // scale mid and side independently
+let msDecL=null, msDecR=null;   // decode back to L/R
+let msSplitter=null, msMerger=null;   // split/merge inside MS chain
+
+// ---- Worklet code ----
+const workletCode = `
+class BrownNoiseProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.rows=new Float32Array(16); this.counter=0;
+    this.lpZ=[new Float32Array(6),new Float32Array(6)]; this.lpCoeff=0.08;
+    this.velvetGrid=22; this.velvetPos=[0,11];
+    this.driftVel=0; this.driftPhase=0;
+    this.intTimer=sampleRate*2; this.intActive=false; this.intProgress=0; this.intGain=1;
+    this.vol=72; this.driftSpeed=30; this.driftDepth=35;
+    this.intRate=15; this.intIntensity=25; this.intChar='dip'; this.velvetMix=0;
+    this._dcxL=0;this._dcyL=0;this._dcxR=0;this._dcyR=0;
+    this.port.onmessage=(e)=>{ Object.assign(this,e.data); };
+  }
+  voss(){
+    this.counter=(this.counter+1)&0xFFFF;
+    let bit=this.counter&(-this.counter),idx=0,b=bit;
+    while(b>>=1)idx++;
+    this.rows[idx&15]=Math.random()*2-1;
+    let s=0; for(let i=0;i<16;i++)s+=this.rows[i];
+    return s/16;
+  }
+  lp6(x,ch){const z=this.lpZ[ch],c=this.lpCoeff;for(let i=0;i<6;i++){z[i]+=c*(x-z[i]);x=z[i];}return x;}
+  velvet(ch){this.velvetPos[ch]+=1;if(this.velvetPos[ch]>=this.velvetGrid){this.velvetPos[ch]-=this.velvetGrid;return Math.random()<0.5?0.5:-0.5;}return 0;}
+  process(inputs,outputs){
+    const out=outputs[0];if(!out||out.length<2)return true;
+    const L=out[0],R=out[1],n=L.length,invSR=1/sampleRate;
+    const vel=this.velvetMix||0,dSp=(this.driftSpeed||0)*0.003,dDp=(this.driftDepth||0)*0.0018;
+    const iR=(this.intRate||0)*0.0008,iIn=(this.intIntensity||0)*0.007,iCh=this.intChar||'dip';
+    const vt=(this.vol||72)/100*0.72;
+    for(let i=0;i<n;i++){
+      const f=(Math.random()*2-1)*dSp;
+      this.driftVel=Math.max(-0.04,Math.min(0.04,this.driftVel*0.998+f));
+      this.driftPhase=Math.max(-1,Math.min(1,this.driftPhase+this.driftVel));
+      const dg=1+this.driftPhase*dDp;
+      this.intTimer-=1;
+      if(this.intTimer<=0&&!this.intActive&&iR>0.0001){
+        this.intTimer=(sampleRate/Math.max(0.0001,iR*sampleRate))*(0.4+Math.random()*0.6);
+        this.intActive=true;this.intProgress=0;
+      }
+      let ig=1;
+      if(this.intActive){
+        this.intProgress+=invSR*(2.2+iR*200);
+        const env=Math.sin(this.intProgress*Math.PI);
+        if(iCh==='dip')ig=1-env*iIn*0.9;
+        else if(iCh==='rumble')ig=1+env*iIn*0.4*(0.8+0.2*Math.sin(this.intProgress*50));
+        else if(iCh==='crackle')ig=1+(Math.random()>0.55?env:-env*0.3)*iIn;
+        else if(iCh==='swell')ig=1+env*iIn*0.5;
+        if(this.intProgress>=1){this.intActive=false;this.intTimer=sampleRate*(0.5+Math.random()*2);}
+      }
+      this.intGain+=(ig-this.intGain)*0.05;
+      const env=vt*dg*this.intGain;
+      let sl=this.lp6(this.voss(),0)*4.2;if(vel>0.001)sl+=this.velvet(0)*vel;
+      const dy=sl-this._dcxL+0.9997*this._dcyL;this._dcxL=sl;this._dcyL=dy;L[i]=dy*env;
+      let sr=this.lp6(this.voss(),1)*4.2;if(vel>0.001)sr+=this.velvet(1)*vel;
+      const dr=sr-this._dcxR+0.9997*this._dcyR;this._dcxR=sr;this._dcyR=dr;R[i]=dr*env;
+    }
+    return true;
+  }
+}
+registerProcessor('brown-noise-processor',BrownNoiseProcessor);
+`;
+
+// ---- Synthetic IR generator ----
+function buildIRBuffer(type) {
+  const sr = actx.sampleRate;
+  const specs = {
+    none:      { dur:0.001 },
+    smallroom: { dur:0.6,  decay:0.8,  early:0.08, diffuse:0.4, color:'warm'    },
+    hall:      { dur:2.8,  decay:1.4,  early:0.07, diffuse:0.7, color:'neutral' },
+    cave:      { dur:3.5,  decay:2.0,  early:0.05, diffuse:0.5, color:'dark'    },
+    plate:     { dur:1.8,  decay:1.0,  early:0.04, diffuse:0.9, color:'bright'  },
+    spring:    { dur:1.2,  decay:0.6,  early:0.03, diffuse:0.3, color:'metal', spring:true },
+    tunnel:    { dur:4.0,  decay:2.5,  early:0.06, diffuse:0.6, color:'dark',  echo:true   },
+  };
+  const s = specs[type] || specs.none;
+  if (type === 'none') {
+    const b = actx.createBuffer(2,2,sr);
+    b.getChannelData(0)[0]=1; b.getChannelData(1)[0]=1; return b;
+  }
+  const len = Math.max(4, Math.floor(s.dur * sr));
+  const buf = actx.createBuffer(2, len, sr);
+  for (let ch=0; ch<2; ch++) {
+    const d = buf.getChannelData(ch);
+    const earlyEnd = Math.min(len, Math.floor(s.early * sr));
+    // Direct + early reflections
+    d[0] = 1.0;
+    for (let i=1; i<earlyEnd; i++) {
+      const t=i/sr;
+      d[i] = (Math.random()*2-1)*Math.exp(-t*10)*0.6;
+      if (Math.random()<0.02) d[i] += (Math.random()*2-1)*0.4*Math.exp(-t*6);
+    }
+    // Diffuse tail
+    for (let i=earlyEnd; i<len; i++) {
+      const t=i/sr;
+      let v=(Math.random()*2-1)*Math.exp(-t/s.decay);
+      if (s.color==='warm')   v*=(1-(i/len)*0.4);
+      if (s.color==='dark')   v*=0.65;
+      if (s.color==='bright') v*=(1+Math.sin(i*0.0003)*0.2);
+      if (s.color==='metal')  v*=(1+Math.sin(i*0.004)*0.35);
+      if (s.spring) v*=(1+0.7*Math.sin(t*20*Math.PI));
+      if (s.echo && (i%Math.floor(sr*0.22))<3) v*=3;
+      v*=(s.diffuse+(1-s.diffuse)*(i/len));
+      d[i]=v;
+    }
+  }
+  // Normalize to 0.9 peak
+  let peak=0;
+  for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<d.length;i++)peak=Math.max(peak,Math.abs(d[i]));}
+  if(peak>0){const sc=0.9/peak;for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<d.length;i++)d[i]*=sc;}}
+  return buf;
+}
+
+function trimIR(buf, pct) {
+  if (pct>=100) return buf;
+  const newLen = Math.max(2, Math.floor(buf.length*pct/100));
+  const out = actx.createBuffer(buf.numberOfChannels, newLen, buf.sampleRate);
+  for (let ch=0;ch<buf.numberOfChannels;ch++){
+    const s=buf.getChannelData(ch), d=out.getChannelData(ch);
+    for(let i=0;i<newLen;i++){
+      const fade = i>newLen*0.88 ? 1-(i-newLen*0.88)/(newLen*0.12) : 1;
+      d[i]=s[i]*fade;
+    }
+  }
+  return out;
+}
+
+// ---- Audio graph ----
+async function startAudio() {
+  if (!actx) {
+    actx = new (window.AudioContext||window.webkitAudioContext)();
+    const enc = btoa(unescape(encodeURIComponent(workletCode)));
+    await actx.audioWorklet.addModule('data:application/javascript;base64,'+enc);
+  }
+  if (actx.state==='suspended') await actx.resume();
+  buildGraph();
+}
+
+function buildGraph() {
+  if (workletNode){try{workletNode.disconnect();}catch(e){}}
+  if (masterGain) {try{masterGain.disconnect();}catch(e){}}
+
+  workletNode = new AudioWorkletNode(actx,'brown-noise-processor',{numberOfInputs:0,numberOfOutputs:1,outputChannelCount:[2]});
+  sendWorkletParams();
+
+  hpfL=actx.createBiquadFilter();hpfL.type='highpass';hpfL.Q.value=0.5;
+  hpfR=actx.createBiquadFilter();hpfR.type='highpass';hpfR.Q.value=0.5;
+  lpfL=actx.createBiquadFilter();lpfL.type='lowpass';lpfL.Q.value=0.5;
+  lpfR=actx.createBiquadFilter();lpfR.type='lowpass';lpfR.Q.value=0.5;
+  shelfL=actx.createBiquadFilter();shelfL.type='lowshelf';shelfL.frequency.value=350;
+  shelfR=actx.createBiquadFilter();shelfR.type='lowshelf';shelfR.frequency.value=350;
+  splitter=actx.createChannelSplitter(2);
+  merger=actx.createChannelMerger(2);
+  convolver=actx.createConvolver();convolver.normalize=true;
+  convDryGain=actx.createGain();
+  convWetGain=actx.createGain();
+  convPreDelayNode=actx.createDelay(0.2);
+  masterGain=actx.createGain();masterGain.gain.value=1.0;
+  analyserL=actx.createAnalyser();analyserL.fftSize=512;
+  analyserR=actx.createAnalyser();analyserR.fftSize=512;
+
+  // Mid/Side processing on the wet reverb signal
+  // convolver output (stereo) → split → encode M/S → scale → decode → merge → convWetGain
+  // Mid  = 0.5*(L+R)   Side = 0.5*(L-R)
+  // Out L = Mid+Side    Out R = Mid-Side
+  msSplitter  = actx.createChannelSplitter(2);
+  msMerger    = actx.createChannelMerger(2);
+  // Encode: mid bus sums both channels; side bus subtracts R from L
+  msEncL      = actx.createGain(); msEncL.gain.value  =  0.5; // L contribution to mid
+  msEncR      = actx.createGain(); msEncR.gain.value  =  0.5; // R contribution to mid
+  const msEncLneg = actx.createGain(); msEncLneg.gain.value =  0.5; // L→side
+  const msEncRneg = actx.createGain(); msEncRneg.gain.value = -0.5; // R→side (negated)
+  msMidGain   = actx.createGain(); msMidGain.gain.value  = 1.0;
+  msSideGain  = actx.createGain(); msSideGain.gain.value = 1.0;
+  // Decode: outL = mid+side, outR = mid-side
+  const msDecMidL  = actx.createGain(); msDecMidL.gain.value  =  1.0;
+  const msDecMidR  = actx.createGain(); msDecMidR.gain.value  =  1.0;
+  const msDecSideL = actx.createGain(); msDecSideL.gain.value =  1.0;
+  const msDecSideR = actx.createGain(); msDecSideR.gain.value = -1.0;
+  const msSumL = actx.createGain(); msSumL.gain.value = 1.0;
+  const msSumR = actx.createGain(); msSumR.gain.value = 1.0;
+
+  // worklet → splitter → L/R filter chains → merger (+ analysers)
+  workletNode.connect(splitter);
+  splitter.connect(hpfL,0);hpfL.connect(lpfL);lpfL.connect(shelfL);shelfL.connect(analyserL);analyserL.connect(merger,0,0);
+  splitter.connect(hpfR,1);hpfR.connect(lpfR);lpfR.connect(shelfR);shelfR.connect(analyserR);analyserR.connect(merger,0,1);
+
+  // merger → dry path (straight)
+  merger.connect(convDryGain);
+
+  // merger → wet path: preDelay → convolver → msSplitter → M/S encode/scale/decode → msMerger → convWetGain
+  merger.connect(convPreDelayNode);
+  convPreDelayNode.connect(convolver);
+  convolver.connect(msSplitter);
+
+  // Encode M/S
+  msSplitter.connect(msEncL,0);   msSplitter.connect(msEncR,1);   // mid = L+R (×0.5 each)
+  msSplitter.connect(msEncLneg,0); msSplitter.connect(msEncRneg,1); // side = L-R (×0.5, -0.5)
+  msEncL.connect(msMidGain);  msEncR.connect(msMidGain);
+  msEncLneg.connect(msSideGain); msEncRneg.connect(msSideGain);
+
+  // Decode back to L/R into separate sum nodes
+  msMidGain.connect(msDecMidL);   msMidGain.connect(msDecMidR);
+  msSideGain.connect(msDecSideL); msSideGain.connect(msDecSideR);
+  msDecMidL.connect(msSumL);   msDecSideL.connect(msSumL);   // outL = mid + side
+  msDecMidR.connect(msSumR);   msDecSideR.connect(msSumR);   // outR = mid - side
+
+  msSumL.connect(msMerger,0,0);
+  msSumR.connect(msMerger,0,1);
+  msMerger.connect(convWetGain);
+
+  convDryGain.connect(masterGain);convWetGain.connect(masterGain);
+  masterGain.connect(actx.destination);
+
+  applyFilters(); applyConvMix(); applyMSStereo();
+  setIR(p.currentIR, false);
+}
+
+function stopAudio(){
+  if(workletNode){try{workletNode.disconnect();}catch(e){}workletNode=null;}
+  if(masterGain){try{masterGain.disconnect();}catch(e){}masterGain=null;}
+}
+
+function sendWorkletParams(){
+  if(!workletNode||!actx)return;
+  const eng=modeEngineConfig[currentMode];
+  workletNode.port.postMessage({
+    vol:p.vol,driftSpeed:p.driftSpeed,driftDepth:p.driftDepth,
+    intRate:p.intRate,intIntensity:p.intIntensity,intChar:p.intChar,
+    velvetMix:p.velvetMix/100,
+    lpCoeff:1-Math.exp(-2*Math.PI*eng.warmCut/actx.sampleRate),
+    velvetGrid:actx.sampleRate/Math.max(1,eng.velvetD||1),
+  });
+}
+
+function applyFilters(){
+  if(!hpfL||!actx)return;
+  const t=actx.currentTime;
+  [hpfL,hpfR].forEach(f=>f.frequency.setTargetAtTime(p.lowCut,t,0.05));
+  [lpfL,lpfR].forEach(f=>f.frequency.setTargetAtTime(p.highCut,t,0.05));
+  [shelfL,shelfR].forEach(f=>f.gain.setTargetAtTime(p.warmth,t,0.05));
+}
+
+function applyConvMix(){
+  if(!convDryGain||!actx)return;
+  const wet=p.convMix/100, dry=1-wet*0.7, t=actx.currentTime;
+  convDryGain.gain.setTargetAtTime(dry,t,0.05);
+  convWetGain.gain.setTargetAtTime(wet,t,0.05);
+  convPreDelayNode.delayTime.setTargetAtTime(p.convPreDelay/1000,t,0.05);
+}
+
+// Mid/Side stereo controls on the wet reverb signal.
+// convWidth  0–200%: 100 = unity, 0 = full mono, 200 = double-wide
+// convSeparation -100–100: pushes mid/side balance; negative = narrow/centred, positive = wide/separated
+function applyMSStereo(){
+  if(!msMidGain||!msSideGain||!actx)return;
+  const t = actx.currentTime;
+  // width: scale the side channel relative to mid
+  // 0% = mono (side=0), 100% = unity, 200% = double wide
+  const sideScale = (p.convWidth/100);
+  // separation: positive pushes side up and mid down, negative does the reverse
+  // keep it subtle — ±0.4 range so it never goes silent
+  const sep = (p.convSeparation/100) * 0.4;
+  const midScale  = 1.0 - sep;
+  msMidGain.gain.setTargetAtTime(Math.max(0, midScale), t, 0.05);
+  msSideGain.gain.setTargetAtTime(Math.max(0, sideScale + sep), t, 0.05);
+}
+
+async function setIR(key, isFile, arrayBuffer) {
+  if (!actx||!convolver) return;
+  setIRStatus('Building…');
+  try {
+    let buf;
+    if (isFile && arrayBuffer) {
+      buf = await actx.decodeAudioData(arrayBuffer);
+    } else {
+      buf = buildIRBuffer(key);
+    }
+    currentIRBuffer = buf;
+    convolver.buffer = trimIR(buf, p.convLength);
+    setIRStatus('');
+  } catch(e) { setIRStatus('Error: '+e.message); }
+}
+
+function setIRStatus(msg){ document.getElementById('irStatus').textContent=msg; }
+
+// ---- Presets (localStorage) ----
+const STORE = 'bns-presets-v1';
+let activePresetId = null;
+
+function loadPresets(){ try{return JSON.parse(localStorage.getItem(STORE)||'[]');}catch{return[];} }
+function savePresets(arr){ localStorage.setItem(STORE,JSON.stringify(arr)); }
+
+function captureState(){
+  return { mode:currentMode, params:{...p} };
+}
+
+function applyState(state){
+  if(state.mode!=null){
+    currentMode=state.mode;
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.mode)===currentMode));
+    document.getElementById('modeLabel').textContent=modePresets[currentMode].name+' — Voss-McCartney';
+  }
+  if(state.params) Object.assign(p,state.params);
+
+  // Sync all UI
+  const M=[
+    ['vol','volVal',v=>v+'%'],['lowCut','lowCutVal',fmtHz],['highCut','highCutVal',fmtHz],
+    ['warmth','warmthVal',fmtDb],['velvetMix','velvetMixVal',v=>v+'%'],
+    ['driftSpeed','driftSpeedVal',v=>v+'%'],['driftDepth','driftDepthVal',v=>v+'%'],
+    ['intRate','intRateVal',v=>v+'%'],['intIntensity','intIntensityVal',v=>v+'%'],
+    ['convMix','convMixVal',v=>v+'%'],['convPreDelay','convPreDelayVal',v=>v+' ms'],
+    ['convLength','convLengthVal',v=>v+'%'],['convWidth','convWidthVal',v=>v+'%'],
+    ['convSeparation','convSeparationVal',v=>v>0?'+'+v:String(v)],
+  ];
+  M.forEach(([id,lid,fmt])=>{
+    const el=document.getElementById(id),lb=document.getElementById(lid);
+    if(el&&p[id]!=null){el.value=p[id];syncSlider(el);}
+    if(lb&&p[id]!=null)lb.textContent=fmt(p[id]);
+  });
+  if(p.intChar) document.getElementById('intChar').value=p.intChar;
+
+  // IR
+  const irKey=p.currentIR||'none';
+  document.querySelectorAll('.ir-btn').forEach(b=>b.classList.toggle('active',b.dataset.ir===irKey));
+  if(irKey!=='__file__') document.getElementById('irUploadLabel').classList.remove('active');
+  if(playing){ sendWorkletParams(); applyFilters(); applyConvMix(); applyMSStereo(); if(actx)setIR(irKey); }
+}
+
+function renderPresets(){
+  const list=document.getElementById('presetList');
+  list.innerHTML='';
+  const all=loadPresets();
+  if(all.length===0){
+    list.innerHTML='<div class="preset-empty">No saved presets — tweak something and hit Save</div>';
+    return;
+  }
+  all.forEach((pr,idx)=>{
+    const row=document.createElement('div');
+    row.className='preset-row'+(pr.id===activePresetId?' loaded':'');
+    const modeName=modePresets[pr.state?.mode]?.name||'';
+    row.innerHTML=`<span class="preset-row-name">${esc(pr.name)}</span><span class="preset-row-meta">${esc(modeName)}</span><button class="preset-row-del" title="Delete">×</button>`;
+    row.addEventListener('click',e=>{
+      if(e.target.matches('.preset-row-del'))return;
+      activePresetId=pr.id; applyState(pr.state); renderPresets();
+    });
+    row.querySelector('.preset-row-del').addEventListener('click',e=>{
+      e.stopPropagation();
+      const all2=loadPresets(); all2.splice(idx,1); savePresets(all2);
+      if(activePresetId===pr.id)activePresetId=null;
+      renderPresets();
+    });
+    list.appendChild(row);
+  });
+}
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+document.getElementById('savePresetBtn').addEventListener('click',()=>{
+  const name=document.getElementById('presetNameInput').value.trim()||('Preset '+(loadPresets().length+1));
+  const all=loadPresets();
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2);
+  all.push({id,name,state:captureState()});
+  savePresets(all); activePresetId=id;
+  document.getElementById('presetNameInput').value='';
+  renderPresets();
+});
+
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const all=loadPresets();
+  if(!all.length){alert('No presets to export.');return;}
+  const blob=new Blob([JSON.stringify(all,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='brown-noise-presets.json'; a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById('importBtn').addEventListener('click',()=>document.getElementById('importFileInput').click());
+document.getElementById('importFileInput').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  try{
+    const incoming=JSON.parse(await f.text());
+    if(!Array.isArray(incoming))throw new Error('Expected array');
+    const merged=loadPresets().concat(incoming.map(pr=>({...pr,id:Date.now().toString(36)+Math.random().toString(36).slice(2)})));
+    savePresets(merged); renderPresets();
+  }catch(err){alert('Import failed: '+err.message);}
+  e.target.value='';
+});
+
+// ---- Spectrum + Meter ----
+const canvas=document.getElementById('spectrum'),specCtx=canvas.getContext('2d');
+let specW=0,specH=0;
+
+function resizeCanvas(){const r=canvas.parentElement.getBoundingClientRect();canvas.width=specW=Math.floor(r.width);canvas.height=specH=72;}
+
+function drawSpectrum(){
+  if(!analyserL){specCtx.clearRect(0,0,specW,specH);return;}
+  const bL=new Uint8Array(analyserL.frequencyBinCount),bR=new Uint8Array(analyserR.frequencyBinCount);
+  analyserL.getByteFrequencyData(bL);analyserR.getByteFrequencyData(bR);
+  specCtx.clearRect(0,0,specW,specH);
+  const step=Math.max(1,Math.floor(bL.length/(specW/3))),bw=Math.max(1,Math.floor(specW/(bL.length/step))-1);
+  for(let i=0,x=0;i<bL.length;i+=step,x+=bw+1){
+    const hL=(bL[i]/255)*(specH-4),hR=(bR[i]/255)*(specH-4);
+    specCtx.fillStyle='rgba(196,129,58,0.7)';specCtx.fillRect(x,specH-hL,bw,hL);
+    specCtx.fillStyle='rgba(122,78,32,0.4)';specCtx.fillRect(x,0,bw,hR);
+  }
+  specCtx.fillStyle='rgba(58,46,34,0.5)';specCtx.fillRect(0,specH/2-.5,specW,1);
+}
+
+function updateMeter(){
+  if(!analyserL){document.getElementById('meterFill').style.width='0%';document.getElementById('meterFillR').style.width='0%';return;}
+  const bL=new Uint8Array(analyserL.frequencyBinCount),bR=new Uint8Array(analyserR.frequencyBinCount);
+  analyserL.getByteFrequencyData(bL);analyserR.getByteFrequencyData(bR);
+  const rL=Math.sqrt(bL.reduce((a,v)=>a+v*v,0)/bL.length)/128;
+  const rR=Math.sqrt(bR.reduce((a,v)=>a+v*v,0)/bR.length)/128;
+  document.getElementById('meterFill').style.width=Math.min(100,rL*220)+'%';
+  document.getElementById('meterFillR').style.width=Math.min(100,rR*220)+'%';
+}
+
+function tick(){drawSpectrum();updateMeter();animId=requestAnimationFrame(tick);}
+
+// ---- Slider sync ----
+function syncSlider(el){
+  const mn=parseFloat(el.min),mx=parseFloat(el.max),v=parseFloat(el.value);
+  el.style.setProperty('--pct',((v-mn)/(mx-mn)*100)+'%');
+}
+document.querySelectorAll('input[type=range]').forEach(el=>{syncSlider(el);el.addEventListener('input',()=>syncSlider(el));});
+
+function setSlider(id,val,lid,fmt){const el=document.getElementById(id),lb=document.getElementById(lid);if(el){el.value=val;syncSlider(el);}if(lb)lb.textContent=fmt(val);}
+function fmtHz(v){return v>=1000?(v/1000).toFixed(1)+'k Hz':v+' Hz';}
+function fmtDb(v){return(v>=0?'+':'')+v+' dB';}
+
+// ---- Controls ----
+document.getElementById('playBtn').addEventListener('click',async()=>{
+  if(!playing){
+    await startAudio(); playing=true;
+    document.getElementById('iconPlay') .style.display='none';
+    document.getElementById('iconPause').style.display='';
+    document.getElementById('playBtn').classList.add('playing');
+    document.getElementById('statusDot').classList.add('active');
+    document.getElementById('statusText').textContent='playing';
+    cancelAnimationFrame(animId);tick();
+  } else {
+    stopAudio(); playing=false;
+    document.getElementById('iconPlay') .style.display='';
+    document.getElementById('iconPause').style.display='none';
+    document.getElementById('playBtn').classList.remove('playing');
+    document.getElementById('statusDot').classList.remove('active');
+    document.getElementById('statusText').textContent='stopped';
+    cancelAnimationFrame(animId);drawSpectrum();
+  }
+});
+
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const idx=parseInt(btn.dataset.mode);
+    // applyState handles all slider sync, filter updates, worklet params
+    applyState({ mode:idx, params:{ ...modePresets[idx].params } });
+  });
+});
+
+document.querySelectorAll('.ir-btn').forEach(btn=>{
+  btn.addEventListener('click',async()=>{
+    document.querySelectorAll('.ir-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('irUploadLabel').classList.remove('active');
+    btn.classList.add('active');
+    p.currentIR=btn.dataset.ir;
+    if(actx) await setIR(p.currentIR);
+  });
+});
+
+document.getElementById('irFileInput').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f)return;
+  document.querySelectorAll('.ir-btn').forEach(b=>b.classList.remove('active'));
+  const lbl=document.getElementById('irUploadLabel');
+  lbl.classList.add('active');
+  document.getElementById('irUploadName').textContent=f.name.length>14?f.name.slice(0,12)+'…':f.name;
+  p.currentIR='__file__';
+  if(!actx){await startAudio();}
+  const ab=await f.arrayBuffer();
+  await setIR('__file__',true,ab);
+  e.target.value='';
+});
+
+function bindRange(id,key,lid,fmt,cb){
+  const el=document.getElementById(id),lb=document.getElementById(lid);
+  el.addEventListener('input',()=>{const v=parseFloat(el.value);p[key]=v;lb.textContent=fmt(v);if(cb)cb(v);});
+}
+
+bindRange('vol','vol','volVal',v=>v+'%',()=>sendWorkletParams());
+bindRange('lowCut','lowCut','lowCutVal',fmtHz,()=>applyFilters());
+bindRange('highCut','highCut','highCutVal',fmtHz,()=>applyFilters());
+bindRange('warmth','warmth','warmthVal',fmtDb,()=>applyFilters());
+bindRange('velvetMix','velvetMix','velvetMixVal',v=>v+'%',()=>sendWorkletParams());
+bindRange('driftSpeed','driftSpeed','driftSpeedVal',v=>v+'%',()=>sendWorkletParams());
+bindRange('driftDepth','driftDepth','driftDepthVal',v=>v+'%',()=>sendWorkletParams());
+bindRange('intRate','intRate','intRateVal',v=>v+'%',()=>sendWorkletParams());
+bindRange('intIntensity','intIntensity','intIntensityVal',v=>v+'%',()=>sendWorkletParams());
+bindRange('convMix','convMix','convMixVal',v=>v+'%',()=>applyConvMix());
+bindRange('convPreDelay','convPreDelay','convPreDelayVal',v=>v+' ms',()=>applyConvMix());
+bindRange('convLength','convLength','convLengthVal',v=>v+'%',()=>{if(currentIRBuffer&&convolver)convolver.buffer=trimIR(currentIRBuffer,p.convLength);});
+bindRange('convWidth','convWidth','convWidthVal',v=>v+'%',()=>applyMSStereo());
+bindRange('convSeparation','convSeparation','convSeparationVal',v=>v>0?'+'+v:String(v),()=>applyMSStereo());
+
+document.getElementById('intChar').addEventListener('change',e=>{p.intChar=e.target.value;sendWorkletParams();});
+
+window.addEventListener('resize',resizeCanvas);
+resizeCanvas(); drawSpectrum(); renderPresets();
+</script>
+</body>
+</html>
